@@ -1,9 +1,43 @@
 {
   "name": "do-storage-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "description": "MCP server for DigitalOcean Spaces storage operations - upload, download, list, and manage files in DO Spaces",
   "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "do-storage-server": "build/index.js"
+  },
+  "files": [
+    "build/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\""
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "digitalocean",
+    "spaces",
+    "storage",
+    "s3",
+    "cloud-storage",
+    "do-spaces"
+  ],
+  "author": "makpy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manav148/do-storage-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/manav148/do-storage-server/issues"
+  },
+  "homepage": "https://github.com/manav148/do-storage-server#readme",
+  "engines": {
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
