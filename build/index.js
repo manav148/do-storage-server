@@ -4,6 +4,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, } from '@modelcontextprotocol/sdk/types.js';
 import { S3Client, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
+import { promises as fs } from 'fs';
+import * as mime from 'mime-types';
 // Check required environment variables
 const requiredEnvVars = ['DO_SPACES_KEY', 'DO_SPACES_SECRET', 'DO_SPACES_ENDPOINT', 'DO_SPACES_BUCKET'];
 const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
@@ -62,6 +64,28 @@ class DOStorageServer {
                     },
                 },
                 {
+                    name: 'upload_file',
+                    description: 'Upload a file from disk to DO Spaces',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            key: {
+                                type: 'string',
+                                description: 'Object key (path) in the bucket',
+                            },
+                            filepath: {
+                                type: 'string',
+                                description: 'Local file path to upload',
+                            },
+                            contentType: {
+                                type: 'string',
+                                description: 'Optional MIME type override',
+                            },
+                        },
+                        required: ['key', 'filepath'],
+                    },
+                },
+                {
                     name: 'download_object',
                     description: 'Download an object from DO Spaces',
                     inputSchema: {
@@ -113,6 +137,8 @@ class DOStorageServer {
             switch (request.params.name) {
                 case 'upload_object':
                     return await this.handleUpload(request.params.arguments);
+                case 'upload_file':
+                    return await this.handleUploadFile(request.params.arguments);
                 case 'download_object':
                     return await this.handleDownload(request.params.arguments);
                 case 'delete_object':
@@ -144,6 +170,38 @@ class DOStorageServer {
                     {
                         type: 'text',
                         text: `Successfully uploaded object: ${args.key}`,
+                    },
+                ],
+            };
+        }
+        catch (error) {
+            throw new McpError(ErrorCode.InternalError, `Upload failed: ${error.message}`);
+        }
+    }
+    async handleUploadFile(args) {
+        if (!args.key || !args.filepath) {
+            throw new McpError(ErrorCode.InvalidParams, 'Missing required parameters: key and filepath');
+        }
+        try {
+            // Read file from disk
+            const fileContent = await fs.readFile(args.filepath);
+            // Auto-detect content type if not provided
+            const contentType = args.contentType || mime.lookup(args.filepath) || 'application/octet-stream';
+            const upload = new Upload({
+                client: s3Client,
+                params: {
+                    Bucket: process.env.DO_SPACES_BUCKET,
+                    Key: args.key,
+                    Body: fileContent,
+                    ContentType: contentType,
+                },
+            });
+            await upload.done();
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `Successfully uploaded file: ${args.key}`,
                     },
                 ],
             };
